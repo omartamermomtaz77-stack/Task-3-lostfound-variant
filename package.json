@@ -6,10 +6,19 @@
     "client"
   ],
   "scripts": {
-    "install:all": "npm --workspaces install",
-    "dev": "concurrently -n server,client -c blue,magenta \"npm:dev --workspace server\" \"npm:dev --workspace client\""
+    "install:all": "npm install",
+    "dev": "concurrently -n server,client -c blue,magenta \"npm:dev --workspace server\" \"npm:dev --workspace client\"",
+    "build": "npm run build --workspace client",
+    "test": "npm test --workspace server",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "concurrently": "^8.2.2"
+  },
+  "config": {
+    "mongodbMemoryServer": {
+      "disablePostinstall": true
+    }
   }
 }

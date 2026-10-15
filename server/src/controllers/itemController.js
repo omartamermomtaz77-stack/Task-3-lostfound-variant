@@ -2,11 +2,11 @@ import Joi from 'joi';
 import { Item } from '../models/Item.js';
 
 const itemSchema = Joi.object({
-  title: Joi.string().min(2).required(),
+  title: Joi.string().trim().min(2).required(),
   description: Joi.string().allow(''),
   category: Joi.string().valid('electronics', 'clothing', 'documents', 'accessories', 'other').default('other'),
   status: Joi.string().valid('lost', 'found', 'claimed').default('lost'),
-  location: Joi.string().allow(''),
+  location: Joi.string().trim().allow('').default(''),
   // the reporter is always the logged-in user, never taken from the body
   reportedBy: Joi.forbidden()
 });
@@ -39,6 +39,7 @@ export async function createItem(req, res, next) {
     if (error) return res.status(400).json({ message: error.message });
 
     const doc = await Item.create({ ...value, reportedBy: req.user.id });
+    await doc.populate('reportedBy', 'name email');
     res.status(201).json({ item: doc });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ message: 'Duplicate item at this location' });
@@ -54,13 +55,14 @@ export async function updateItem(req, res, next) {
       return res.status(403).json({ message: 'You can only edit items you reported' });
     }
 
-    // drop reportedBy from the merge so the owner can't be reassigned
-    const { reportedBy, ...current } = existing.toObject();
+    const { title, description, category, status, location } = existing;
+    const current = { title, description, category, status, location };
     const merged = { ...current, ...req.body };
-    const { value, error } = itemSchema.validate(merged, { abortEarly: false, stripUnknown: true, convert: true });
+    const { value, error } = itemSchema.validate(merged, { abortEarly: false });
     if (error) return res.status(400).json({ message: error.message });
 
-    const doc = await Item.findByIdAndUpdate(req.params.id, { $set: value }, { new: true, runValidators: true });
+    const doc = await Item.findByIdAndUpdate(req.params.id, { $set: value }, { new: true, runValidators: true })
+      .populate('reportedBy', 'name email');
     res.json({ item: doc });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ message: 'Duplicate item at this location' });

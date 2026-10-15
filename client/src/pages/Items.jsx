@@ -12,40 +12,63 @@ export default function Items() {
   const [status, setStatus] = useState('')
   const [category, setCategory] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState(null)
 
-  async function load() {
-    const res = await api.get('/items', { params: { status: status || undefined, category: category || undefined } })
-    setItems(res.data.items)
-  }
-
-  useEffect(() => { load() }, [status, category])
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    setError('')
+    api.get('/items', {
+      params: { status: status || undefined, category: category || undefined },
+      signal: controller.signal
+    })
+      .then(res => {
+        if (!controller.signal.aborted) setItems(res.data.items)
+      })
+      .catch(err => {
+        if (!controller.signal.aborted) {
+          setItems([])
+          setError(err?.response?.data?.message || 'Could not load items. Please try again.')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [status, category])
 
   async function onDelete(id) {
+    if (deletingId) return
     setError('')
+    setDeletingId(id)
     try {
       await api.delete('/items/' + id)
       setItems(prev => prev.filter(i => i._id !== id))
     } catch (err) {
       setError(err?.response?.data?.message || 'Delete failed')
+    } finally {
+      setDeletingId(null)
     }
   }
 
   return (
     <div className="space-y-4">
       <div className="card flex items-center gap-2">
-        <select className="input" value={status} onChange={e => setStatus(e.target.value)}>
+        <select aria-label="Filter by status" className="input" value={status} onChange={e => setStatus(e.target.value)}>
           <option value="">All statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className="input" value={category} onChange={e => setCategory(e.target.value)}>
+        <select aria-label="Filter by category" className="input" value={category} onChange={e => setCategory(e.target.value)}>
           <option value="">All categories</option>
           {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
-      {error && <div className="text-red-600 text-sm">{error}</div>}
+      {error && <div role="alert" className="text-red-600 text-sm">{error}</div>}
+      {loading && <p role="status" className="text-sm">Loading items…</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {items.map(i => {
+        {!loading && items.map(i => {
           const isMine = user && i.reportedBy?._id === user.id
           return (
             <div key={i._id} className="card">
@@ -59,7 +82,7 @@ export default function Items() {
                 {isMine && (
                   <div className="flex gap-2">
                     <Link to={`/items/${i._id}`} className="btn text-sm">Edit</Link>
-                    <button onClick={() => onDelete(i._id)} className="btn text-sm">Delete</button>
+                    <button onClick={() => onDelete(i._id)} disabled={Boolean(deletingId)} className="btn text-sm">{deletingId === i._id ? 'Deleting…' : 'Delete'}</button>
                   </div>
                 )}
               </div>
@@ -67,7 +90,7 @@ export default function Items() {
             </div>
           )
         })}
-        {items.length === 0 && <div className="text-sm text-zinc-600">No items found.</div>}
+        {!loading && !error && items.length === 0 && <div className="text-sm text-zinc-600">No items found.</div>}
       </div>
     </div>
   )

@@ -98,3 +98,29 @@ reported returns `403` — show that message too.
 You're expected to use AI tools while building this. But you should be able
 to explain, for any line in your component, *why* it's there and what
 happens if you delete it. We will ask.
+
+## Verification
+
+The Report/Edit Item page implements all three TODOs above. Registration
+logs you in automatically; protected pages wait for session restoration
+on refresh and return you to your requested page after login. Email
+addresses are trimmed and matched without regard to capitalization.
+
+```
+npm test             # API integration tests
+npm run build        # production client build
+npx playwright install chromium
+npm run test:e2e     # browser flows, including login/register and report/edit
+```
+
+Tests use a disposable local MongoDB instance and do not read `server/.env`
+or write to your configured database. The first test run downloads MongoDB;
+normal dependency installation skips that download. Use Node.js 20.19 or
+newer for the test tooling. To use an already-installed Chrome for browser
+tests, set `PLAYWRIGHT_CHANNEL=chrome` instead of installing Chromium.
+
+The Vite development and preview servers proxy `/api` to
+`http://localhost:4000`. Set `API_PROXY_TARGET` when the API runs elsewhere.
+For a separately hosted production client, set `VITE_API_URL` to the API's
+URL ending in `/api` before building, and configure the API's allowed CORS
+origin for that client.

@@ -9,12 +9,32 @@ export function AuthProvider({ children }) {
 
   // Bootstrap user from token on first load
   useEffect(() => {
+    const controller = new AbortController()
+    const clearSession = () => {
+      setUser(null)
+      setLoading(false)
+    }
+    window.addEventListener('auth:unauthorized', clearSession)
     const token = localStorage.getItem('token')
-    if (!token) { setLoading(false); return }
-    api.get('/auth/me')
-      .then(res => setUser(res.data.user || null))
-      .catch(() => { localStorage.removeItem('token'); setUser(null) })
-      .finally(() => setLoading(false))
+    if (!token) setLoading(false)
+    else {
+      api.get('/auth/me', { signal: controller.signal })
+        .then(res => {
+          if (!controller.signal.aborted && localStorage.getItem('token') === token) {
+            setUser(res.data.user || null)
+          }
+        })
+        .catch(() => {
+          if (!controller.signal.aborted && localStorage.getItem('token') === token) setUser(null)
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false)
+        })
+    }
+    return () => {
+      controller.abort()
+      window.removeEventListener('auth:unauthorized', clearSession)
+    }
   }, [])
 
   const login = useCallback(async (email, password) => {
@@ -32,7 +52,6 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     localStorage.removeItem('token')
     setUser(null)
-    window.location.href = '/login'
   }, [])
 
 
@@ -48,4 +67,3 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>')
   return ctx
 }
-    

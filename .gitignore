@@ -4,6 +4,8 @@ node_modules/
 # Build artifacts
 build/
 dist/
+playwright-report/
+test-results/
 .parcel-cache/
 
 # Environment variables

@@ -10,3 +10,4 @@ body { @apply bg-zinc-50 text-zinc-900; }
 .btn { @apply inline-flex items-center gap-2 rounded-lg px-4 py-2 font-medium border border-zinc-300 hover:bg-zinc-100; }
 .input { @apply w-full rounded-lg border border-zinc-300 px-3 py-2; }
 .card { @apply rounded-2xl border border-zinc-200 p-4 shadow-sm bg-white; }
+.btn:disabled, fieldset:disabled .btn { @apply opacity-50 cursor-not-allowed; }
